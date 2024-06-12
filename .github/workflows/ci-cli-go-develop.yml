@@ -1,8 +1,19 @@
 
   # do these as repo or org variables (like secrets)
   # ECR_REGISTRY is set on login below to 448877188565.dkr.ecr.us-east-2.amazonaws.com
-  on:
-    workflow_dispatch:
+name: develop branch build pipeline
+  
+on:
+  workflow_dispatch:
+
+jobs:
+  reusable_echo:
+    name: echo message back
+    runs-on: ubuntu-latest
+    steps:
+      - name: echo
+        run: |
+          echo "Hello"
 
   # ECR_REPOSITORY: 'arch-sample-service'
   # CONTAINER_IMAGE_TAG: ${{ github.sha }}

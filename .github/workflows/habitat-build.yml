@@ -1,3 +1,5 @@
+name: another draft Habitat build
+
 on:
   workflow_call:
 

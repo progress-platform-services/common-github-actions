@@ -1,4 +1,4 @@
-name: CI workflow for GoLang CLIs
+name: CI workflow for GoLang agents (uses Habitat)
       
 on:
   # pull_request:
