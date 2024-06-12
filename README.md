@@ -12,3 +12,8 @@ Naming convention:
 
 - ci-agent-go-main.yml - does CI tasks (build, test, package) for Go-based agents on merges to main 
 - cd-cli-go-dev.yml
+
+## Supporting files
+
+### License scout and SBOM
+- `.license_scout.yml` contains the default fallback licenses for common Courier items
