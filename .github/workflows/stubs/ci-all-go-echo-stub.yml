@@ -1,5 +1,5 @@
 # dispatch action to call a remote echo service
-name: Run echo GHA from chef/common-github-actions
+name: Run echo GHA from progress-platform-services/common-github-actions
 
 on: 
   pull_request:
@@ -24,9 +24,19 @@ on:
            
 jobs: 
   call-echo-service:
-    runs-on: ubuntu-latest
-    steps:
-       - name: Call simple echo workflow
-         uses: progress-platform-services/common-github-actions/.github/workflows/ci-echo-go.yml@main
-         with:
-           foo: 'hello world'
+    #runs-on: ubuntu-latest
+    #steps:
+    #   - name: Call simple echo workflow
+      uses: progress-platform-services/common-github-actions/.github/workflows/ci-echo-go.yml@main
+      with:
+        message: 'hello world'
+
+  # CI-pipeline:
+  #   uses: 'chef/common-github-actions/.github/workflows/ci-release-go-cli.yml@main'
+  #   with:
+  #     application-name: "arch-sample-cli"
+
+  # Sonar:
+  #   uses: 'chef/common-github-actions/.github/workflows/sonarqube.yml@main'
+  #     secrets: inherit
+           
