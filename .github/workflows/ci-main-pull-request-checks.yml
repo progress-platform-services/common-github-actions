@@ -1,0 +1,124 @@
+# CI pipeline for all application types on main and release branches
+# use stubs/ci-main-pull-request-checks-stub.yml in your repo to call this common action using workflow_call
+#
+# on: 
+#   pull_request:
+#     branches: [ main, release/** ]
+#       # types: [opened, synchronize, reopened, closed]
+#   push:
+#     branches: [ main, release/** ]
+#       # - master
+#       # - develop
+#       # - 'features/**' 
+
+#   workflow_dispatch:
+
+# jobs: 
+#   call-ci-main-pr-check-pipeline:
+#     uses: chef/common-github-actions/.github/workflows/ci-main-pull-request-checks.yml@main
+#     with:
+#       language: 'Ruby'
+#       # outputfilename: 'scc-output.txt'
+#       visibility: ${{ github.event.repository.visibility }} # optional, defaults to public
+#       github-token: ${{ secrets.GITHUB_TOKEN }} # optional, and used only by back-level pipelines
+#       # alternatively, this is also passed in the next line as part of the secrets collection
+#     secrets: inherit
+# inputs:
+#   language:
+#     description: 'Primary language in the repository'
+#     required: true
+#     type: choice
+#     options: 
+#       - GoLang
+#       - Ruby
+#       - Rust
+#   outputfilename:
+#     description: 'Name of the SCC output file'
+#     required: false
+#     type: string
+#     default: 'scc-output.txt'
+
+name: main and release branch CI flow containing PR checks
+
+on:
+  workflow_call:
+    inputs:
+      language:
+        description: 'Primary language in the repository, for language-specific checks'
+        required: false
+        type: string
+        default: 'Go'
+      outputfilename:
+        description: 'Name of the SCC output file artifact'
+        required: false
+        type: string
+        default: 'scc-output.txt'
+      visibility:
+        description: 'Visibility of the repository'
+        required: false
+        type: string
+        default: 'public' # (private, public, or internal)
+      skip-trufflehog:
+        description: 'Skip trufflehog scan'
+        required: false
+        type: boolean
+        default: false
+      skip-sonarqube: 
+        description: 'Skip SonarQube scan'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  REPO_VISIBILITY: ${{ github.event.repository.visibility }}
+  PIPELINE_VERSION: '1.0.0'
+
+jobs:
+  echo_inputs:
+    name: 'Echo version of pipeline and inputs'
+    runs-on: ubuntu-latest
+    steps:
+      - name: echo version of pipeline and inputs
+        run: |
+          echo "pipeline version $PIPELINE_VERSION"
+          echo "Language set to ${{ inputs.language }} "
+          echo "SCC output filename set to ${{ inputs.outputfilename }} "
+          echo "Visibility set to $REPO_VISIBILITY [ ${{ inputs.visibility }} ]"
+          echo "Skip trufflehog set to ${{ inputs.skip-trufflehog }}"
+          echo "Skip SonarQube set to ${{ inputs.skip-sonarqube }}"
+        # echo "The job_id is: $GITHUB_JOB"   
+        # echo ${{ secrets.GITHUB_TOKEN }} DO NOT DO THIS
+          
+  # sections to always run (language-independent)
+  run-scc:
+    name: source code complexity scan    
+    uses: progress-platform-services/common-github-actions/.github/workflows/scc.yml@main
+    with:
+      outputfilename: ${{ inputs.outputfilename }}
+    needs: echo_inputs
+
+  run-trufflehog:
+    if: ${{ inputs.skip-trufflehog == false }}
+    uses: progress-platform-services/common-github-actions/.github/workflows/trufflehog.yml@main
+    needs: echo_inputs
+   
+  # TODO: use the visibility of repo, so that we can GO_PRIVATE with secrets.GITHUB_TOKEN and set right runner for SQ on SONAR_TOKEN - public: ubuntu-latest-4-cores, private: ip-range-controlled
+  run-sonarqube-public-repo:
+    if: ${{ inputs.skip-sonarqube == false && inputs.visibility == 'public' }}
+    uses: progress-platform-services/common-github-actions/.github/workflows/sonarqube-public-repo.yml@main
+    needs: run-trufflehog
+    secrets: inherit
+  run-sonarqube-private-internal-repo:
+    if: ${{ inputs.skip-sonarqube == false && ( inputs.visibility == 'internal' || inputs.visibility == 'private' ) }}
+    uses: progress-platform-services/common-github-actions/.github/workflows/sonarqube-private-internal-repo.yml@main
+    needs: run-trufflehog
+    secrets: inherit
+
+  # sections for language specific tests (gosec, etc.)
+  # run-Ruby-language-specific-tests:
+  #   if: ${{ inputs.language == 'Ada' }}  # Check if "DEPLOY_ENV" is "production"
+  #   uses: chef/common-github-actions/.github/workflows/ruby-sonarqube.yml@main
+  #   needs: run-sonarqube
+
+    # https://docs.github.com/en/actions/sharing-automations/reusing-workflows#passing-inputs-and-secrets-to-a-reusable-workflow
+  

@@ -1,0 +1,45 @@
+name: SonarQube scan (public)
+
+on:
+  workflow_call:
+    
+jobs:
+  echo_inputs:
+    name: 'Echo pipeline stage'
+    runs-on: ubuntu-latest
+    steps:
+    - name: Echo inputs
+      run: |
+        echo "Sonarqube scan for public repositories, running on ubuntu-latest-4-cores runner"
+    
+  # IP-RANGE-CONTROLLED does not work... probably needs IP range refresh, cannot get throughto api.sonar
+  sonarqube:
+    runs-on: ip-range-controlled
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    # - name: Set up Go
+    #   uses: actions/setup-go@v4
+    #   with:
+    #     go-version: 1.23.6
+    
+    # - name: Configure git for private modules
+    #   env:
+    #     GOPRIVATE: github.com/progress-platform-services/*
+    #   run: git config --global url."https://${{ secrets.GH_TOKEN }}@github.com/".insteadOf "https://github.com/"
+    
+    # - name: Generate coverage files
+    #   run: go test -v -coverprofile="coverage.out" ./... 
+    # - name: Copy file
+    #   run: mkdir -p test/coverage; cp coverage.out test/coverage/coverage.out
+    # if: always()
+      
+    - name: SonarQube Scan
+      uses: sonarsource/sonarqube-scan-action@v5.0.0
+      continue-on-error: true
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
