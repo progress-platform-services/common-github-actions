@@ -1,4 +1,4 @@
-# Common Github Actions for Progress-Platform-Services
+# Common Github Actions for Chef organization
 Location for reusable workflows
 
 ## Naming convention

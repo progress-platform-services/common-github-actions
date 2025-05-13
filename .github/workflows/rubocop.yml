@@ -1,0 +1,47 @@
+# CI action for running Rubocop, the Ruby style rule checker & linter
+#
+# rubocop.yml
+#
+# from https://github.com/actions/starter-workflows/blob/main/code-scanning/rubocop.yml
+# there are many Rubocop linters, like https://github.com/marketplace/actions/rubocop-linter-action 
+
+# TODO: Use the chef cookstyle rules as an alternative
+# TODO: upload to SonarQube by setting sonar.ruby.rubocop.reportPaths
+# https://docs.sonarsource.com/sonarqube-server/latest/analyzing-source-code/importing-external-issues/external-analyzer-reports/
+
+name: Rubocop scan
+
+on:
+  workflow_call:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        # Due to https://github.com/actions/runner/issues/849, we have to use quotes for '3.0'
+        ruby: ['3.4'] # '2.7', '3.1', 
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: ruby/setup-ruby@v1
+      # follow instructions at https://github.com/marketplace/actions/setup-ruby-jruby-and-truffleruby & https://docs.github.com/en/actions/use-cases-and-examples/building-and-testing/building-and-testing-ruby
+      # not recommended to pin setup-ruby anymore - like uses: ruby/setup-ruby@55283cc23133118229fd3f97f9336ee23a179fcf # v1.146.0
+      with:
+        ruby-version: ${{ matrix.ruby }}
+        bundler-cache: true # runs 'bundle install' and caches installed gems automatically
+    - run: bundle exec rake
+    - run: bundle install
+    # can also bundle exec rubocop
+    - name: Rubocop
+      run: rubocop --format CodeScanning::SarifFormatter -o rubocop.sarif
+      # other flags like -f github --display-cop-names --force-exclusion --parallel --cache false --out rubocop.json @ https://docs.rubocop.org/rubocop/usage/basic_usage.html#command-line-flags
+      # output formats @ https://docs.rubocop.org/rubocop/formatters.html
+      # rubocop rules are in something like .github/workflows/rubocop.yml or .rubocop.yml
+
+    - name: Upload Sarif output
+      uses: github/codeql-action/upload-sarif@v3
+      # https://docs.github.com/en/code-security/code-scanning/integrating-with-code-scanning/uploading-a-sarif-file-to-github
+      with:
+        sarif_file: rubocop.sarif

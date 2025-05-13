@@ -1,10 +1,13 @@
-# scc.yml
-# from https://github.com/boyter/scc
 name: source code complexity scan
+# from https://github.com/boyter/scc
     
 on:
   workflow_call:
     inputs:
+    #   language:
+    #     description: 'Primary language in the repository'
+    #     required: true
+    #     type: string
       outputfilename:
         description: 'Name of the SCC output file'
         required: false
@@ -14,7 +17,8 @@ on:
 jobs:
   scc:
     runs-on: ubuntu-latest
-    name: 'Complexity and SLOC generation'
+    name: 'Complexity and SLOC'
+    # (after - name:) if: ${{ inputs.language == 'Go' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,9 +27,12 @@ jobs:
         id: scc
         uses: Adapt-API/scc-docker-action@master
         with:
-          args: -o ${{ inputs.outputfilename }} -f json --by-file --sort lines,code,comments,blank  
-          # flags like -i js,go,html,css,rb at https://github.com/boyter/scc?tab=readme-ov-file#usage
-              
+          args: -o ${{ inputs.outputfilename }}
+          # --by-file -i js,go,html,css,rb 
+          
+        #   - name: Echo output to correct file
+        #     run: echo -n "${{ steps.scc.outputs.scc }}" >> ${{ inputs.outputfilename }}
+         #     #   echo -n "${{ fromJson(steps.scc.outputs.scc)[0].Code }}"       
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:

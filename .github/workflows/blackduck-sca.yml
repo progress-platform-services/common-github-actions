@@ -1,0 +1,61 @@
+# CI action for running a Blackduck SCA scan GitHub Action (GA) which can be called from other GAs or workflows.
+#
+# blackduck-sca.yml
+# 
+name: Blackduck SCA scan
+# from https://documentation.blackduck.com/bundle/bridge/page/documentation/c_github-blackduck.html 
+# parameters @ https://documentation.blackduck.com/bundle/bridge/page/documentation/c_using-bridge-with-black-duck.html
+
+on:
+  workflow_call:
+    secrets:
+      BLACKDUCKSCA_ACCESS_TOKEN: # required, but not used in this stub
+      # BLACKDUCK_URL: # required, but not used in this stub
+
+jobs:
+  Blackduck-SCA:
+    runs-on: [ ubuntu-latest ]
+    steps:
+      # - name: Checkout Source
+      #   uses: actions/checkout@v4
+      - name: Starting Black Duck SCA scan
+        run: |
+          echo "BLACKDUCK_URL: ${{ secrets.BLACKDUCK_URL }}"
+      - name: Black Duck SCA Scan
+        id: black-duck-sca-scan
+        uses: blackduck-inc/black-duck-security-scan@v2.1.1
+        
+        ### Configure DETECT environment variables
+        env:
+          DETECT_PROJECT_NAME: ${{ github.event.repository.name }}
+          
+        with:
+          ### SCANNING: Required fields
+          blackducksca_url: ${{ secrets.BLACKDUCK_URL }}
+          blackducksca_token: ${{ secrets.BLACKDUCKSCA_ACCESS_TOKEN }}
+         
+          ### SCANNING: Optional fields
+          # blackducksca_scan_failure_severities: 'BLOCKER,CRITICAL'
+          
+          ### FIX PULL REQUEST CREATION: Uncomment below to enable
+          # blackducksca_fixpr_enabled: true
+          # github_token: ${{ secrets.GITHUB_TOKEN }} # Required when Fix PRs is enabled
+          
+          ### PULL REQUEST COMMENTS: Uncomment below to enable
+          # blackducksca_prcomment_enabled: true 
+          # github_token: ${{ secrets.GITHUB_TOKEN }} # Required when PR comments is enabled
+
+          ### SARIF report generation and upload to GitHub Adavanced Security: Uncomment below to enable
+          blackducksca_reports_sarif_create: true # Create Black Duck SCA SARIF report and upload it as artifact
+          # blackducksca_upload_sarif_report: true  # Upload Black Duck SCA SARIF report in GitHub Advanced Security tab
+          # github_token: ${{ secrets.GITHUB_TOKEN }} # Required when blackducksca_upload_sarif_report is set as true
+          
+          ### Mark build status if policy violating issues are found
+          # mark_build_status: 'success'
+          
+    ### Uncomment below configuration to add custom logic based on return status
+    # - name: cmdLine
+    #   id: cmdLine
+    #   run: |
+    #     EXIT_CODE=${{ steps.black-duck-security-scan.outputs.status }}
+    #     echo "Black Duck Security Scan exit status - $EXIT_CODE"

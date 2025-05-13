@@ -1,45 +1,155 @@
-name: SonarQube scan (public)
+# sonarqube-public-repo.yml
+#
+# from internal GA page - https://progresssoftware.atlassian.net/wiki/spaces/TCE/pages/641925121/SonarQube+-+Github+Actions
+# gets Akeyless secret to permit firewall traffic from GA to SonarQube
+name: SonarQube scan for public repositories
+# configuration @ https://github.com/marketplace/actions/official-sonarqube-scan
 
 on:
   workflow_call:
-    
+    # all secrets are inherited from the calling workflow, typically SONAR_TOKEN, SONAR_HOST_URL, AKEYLESS_JWT_ID
+    inputs:
+      perform-build: 
+        required: false
+        type: boolean
+      build-profile:  # TODO: implmenet this flag - chef360 container build flags, etc
+        required: false
+        type: string
+      language: 
+        required: false
+        type: string
+      report-unit-test-coverage: 
+        required: false
+        type: boolean
+      report-to-atlassian-dashboard: 
+        required: false
+        type: boolean
+      quality-product-name:
+        required: false
+        type: string
+      quality-sonar-app-name:
+        required: false
+        type: string
+      quality-testing-type:
+        required: false
+        type: string
+      quality-service-name:
+        required: false
+        type: string
+      quality-junit-report:
+        required: false
+        type: string
+      visibility: # TODO: simplify the sonar step by bringing in the other variants (private, public, internal) from the calling workflow
+        required: false
+        type: string
+      go-private-modules:
+        required: false
+        type: string
+      udf1:
+        required: false
+        type: string
+      udf2:
+        required: false
+        type: string
+      udf3:
+        required: false
+        type: string
+
 jobs:
-  echo_inputs:
-    name: 'Echo pipeline stage'
+  echo-inputs:
+    name: 'Echo inputs'
     runs-on: ubuntu-latest
     steps:
     - name: Echo inputs
       run: |
-        echo "Sonarqube scan for public repositories, running on ubuntu-latest-4-cores runner"
+        echo "Sonarqube scan for PUBLIC repositories, running on ubuntu-latest-4-cores runner"
+        echo "Perform build set to ${{ inputs.perform-build }}"
+        echo "Build profile set to ${{ inputs.build-profile }}"
+        echo "Language set to ${{ inputs.language }} "
+        echo "Visibility set to ${{ inputs.visibility }} [ ${{ github.event.repository.visibility }} ]"
+        echo "Perform unit test coverage set to ${{ inputs.report-unit-test-coverage }}"
+        echo "Report to Atlassian dashboard set to ${{ inputs.report-to-atlassian-dashboard }}"
+        echo "Quality product name set to ${{ inputs.quality-product-name }}" 
+        echo "Quality sonar application name set to ${{ inputs.quality-sonar-app-name }}"
+        echo "Quality testing type set to ${{ inputs.quality-testing-type }}"
+        echo "Quality service name set to ${{ inputs.quality-service-name }}"
+        echo "Quality JUnit report set to ${{ inputs.quality-junit-report }}"
+        echo "Go private modules set to ${{ inputs.go-private-modules }}"    
+
+  SonarQube:
+    runs-on: ubuntu-latest
+    permissions: 
+      id-token: write
+      contents: read
     
-  # IP-RANGE-CONTROLLED does not work... probably needs IP range refresh, cannot get throughto api.sonar
-  sonarqube:
-    runs-on: ip-range-controlled
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
       with:
         fetch-depth: 0
-    
-    # - name: Set up Go
-    #   uses: actions/setup-go@v4
+
+    # from Confluence, with @latest version of the action
+    # - name: Prepare Secrets and Login into Azure
+    #   id: get-aad-secret
+    #   uses: 'prgs-community/githubactions-reusableworkflow-sonarqube/.github/actions/azure-login@latest'
     #   with:
-    #     go-version: 1.23.6
-    
-    # - name: Configure git for private modules
-    #   env:
-    #     GOPRIVATE: github.com/progress-platform-services/*
-    #   run: git config --global url."https://${{ secrets.GH_TOKEN }}@github.com/".insteadOf "https://github.com/"
-    
-    # - name: Generate coverage files
-    #   run: go test -v -coverprofile="coverage.out" ./... 
-    # - name: Copy file
-    #   run: mkdir -p test/coverage; cp coverage.out test/coverage/coverage.out
-    # if: always()
+    #     akeyless-access-id: '${{ secrets.AKEYLESS_JWT_ID }}'
+
+    - name: Prepare Secrets and Login into Azure
+      id: get-aad-secret
+      uses: 'progress-platform-services/common-github-actions/.github/actions/azure-login@main'
+      with:
+        akeyless-access-id: '${{ secrets.AKEYLESS_JWT_ID }}'
+      
+    - name: Add runner IP to Firewall List
+      uses: progress-platform-services/common-github-actions/.github/actions/update-firewall-rule@main
+      with:
+        action-to-execute: add
+
+    - name: wait
+      shell: bash
+      run: |
+        echo "##[warning]Waiting for 30 seconds to allow the firewall rule to take effect"
+        sleep 30
       
     - name: SonarQube Scan
-      uses: sonarsource/sonarqube-scan-action@v5.0.0
+      if: ${{ inputs.visibility == 'public' }}
+      uses: sonarsource/sonarqube-scan-action@v5.1.0
       continue-on-error: true
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        
+    - name: Remove Storage Firewall Rule
+      if: always()
+      uses: progress-platform-services/common-github-actions/.github/actions/update-firewall-rule@main
+      with:
+          action-to-execute: remove
 
+    - name: logout
+      if: always()
+      shell: bash
+      run: |
+          az logout
+
+#TODO: Test adding Irfan's quality reporting stage inline here after sonar run (https://github.com/Progress-I360/github-action-reporting)
+# PRODUCT_NAME = [Chef360 | Courier | Inspec] @main removed
+    # - name: Run SonarQube report generation
+    #   if: ${{ inputs.report-to-atlassian-dashboard == true && inputs.visibility == 'internal' }}
+    #   uses: Progress-I360/github-action-reporting/sonarqube@main
+    #   with:
+    #     PRODUCT_NAME: ${{ inputs.quality-product-name }}
+    #     SONAR_APP_NAME: ${{ inputs.quality-sonar-app-name }}
+    #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      # TESTING_TYPE = [Unit | Integration | e2e | api | Performance | Security]
+      # ENVIRONMENT = [DEV | STAGE | PROD] (optional)
+      # TODO: uncomment this
+    # - name: Run report generation
+    #   if: ${{ inputs.report-to-atlassian-dashboard == true && inputs.report-unit-test-coverage == true && inputs.visibility == 'internal' }}
+    #   uses: Progress-I360/github-action-reporting/automation@main
+    #   with:
+    #     PRODUCT_NAME: ${{ inputs.quality-product-name }}
+    #     TESTING_TYPE: ${{ inputs.quality-testing-type }}
+    #     SERVICE_NAME: ${{ inputs.quality-service-name }}
+    #     JUNIT_REPORT: ${{ inputs.quality-junit-report }}
